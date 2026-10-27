@@ -4,7 +4,7 @@
   "description": "KhoSpace inventory management with Supabase and Mantine",
   "main": "index.js",
   "scripts": {
-    "test": "node --test tests/geometry.test.mjs tests/navigation.test.mjs",
+    "test": "node --test tests/geometry.test.mjs tests/navigation.test.mjs tests/layout.test.mjs tests/qr-camera.test.mjs tests/stock-visualization.test.mjs tests/product-search.test.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
@@ -18,6 +18,7 @@
     "@mantine/hooks": "9.7.4",
     "@mantine/notifications": "9.7.4",
     "@supabase/supabase-js": "2.118.0",
+    "jsqr": "1.4.0",
     "lucide-react": "1.61.0",
     "qrcode": "1.5.4",
     "react": "19.3.1",

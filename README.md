@@ -62,3 +62,99 @@ The owner can change warehouse name, width and depth from **Kích thước kho**
 A decorative worker appears automatically in the 3D scene. It chooses random reachable destinations and walks around rack footprints with animated arms/legs. It has no keyboard controls, camera-follow mode, stock checks or data mutations. Motion is paused while a modal is open or the document is hidden; reduced-motion preferences display a stationary worker. Routes use a bounded A* search and reroute when rack geometry changes.
 
 Verified: 11 geometry/navigation/animation tests; SQL checks for expand, blocked shrink, stale writes and owner-only changes; browser form save and actual persisted dimensions; concurrent shrink vs. incompatible rack move; visible automatic movement in the browser. `tests/warehouse-concurrency.mjs` only accepts the disposable QA account and is not a production test command.
+
+## Walls, doors and equipment
+
+Apply `database/layout_objects.sql` on a database that does not yet have the
+`warehouse_layout_objects` migration. The **Builder · Thành phần** / **Bố trí kho** controls open a component palette
+beside the existing WebGL scene. No separate 2D canvas or modal is used. Choose
+walls and drag endpoints directly on the 3D floor; choose doors, tables, machines
+or floor areas and click the floor to place a preview. Existing objects can be
+selected in the scene or by name. Drag their body or translation arrows to move,
+use the rotation ring to turn, and use scale handles to resize width/depth/height.
+Gizmo/body drags save on release. Numeric inspector fields preview immediately
+and save through **Lưu thông số**. R rotates by 90 degrees; Escape cancels.
+The camera stays in its current perspective while editing. Rack placement and
+corner resizing remain available from the same palette. Door openings must be
+left between wall segments; this version does not cut openings into walls.
+Wall visibility and door open state are viewing controls, not persisted geometry.
+No roof is modelled.
+
+Layout rows inherit warehouse membership RLS. Owners/operators can write;
+viewers can read. Updates/deletes check `updated_at`. Bounds are validated in
+Postgres, including arbitrary rotations, and warehouse shrinking is blocked
+when it would strand layout objects outside the floor. Workers avoid walls,
+closed doors, tables and machines. Equipment models are schematic.
+
+## Rack tiers
+
+Apply `database/rack_shelf_count.sql` (`rack_shelf_count` migration). Existing
+racks default to three tiers. Rack placement/drawing exposes total height and
+**Số tầng kệ** (integer 1–20). The 3D preview, saved geometry, detail view and
+cloning use the stored `shelf_count`. The builder's rack inspector edits these
+values in place. Tier pitch is total height / tier count; the displayed pitch
+excludes deduction for shelf thickness. Storage deck thickness is drawn within
+each tier, and illustrative stock boxes stay inside its vertical clearance.
+
+The component palette includes a movable/resizable trash bin after applying
+`database/layout_bin.sql` (`layout_bin_component`). Rack labels in the 3D scene
+include their saved tier counts.
+
+## Delete a warehouse
+
+Apply `database/delete_warehouse.sql` (`owner_delete_warehouse`). The warehouse
+owner can use the trash icon beside the warehouse title, the **Tùy chọn kho**
+menu beside its name in the sidebar, or **Xóa kho** in warehouse settings. The confirmation dialog requires the exact warehouse name. The RPC
+rechecks owner identity, confirmation text and warehouse `updated_at`, acquires
+the warehouse advisory lock and removes all warehouse records in one transaction.
+It deletes inventory history as part of deleting the entire warehouse. No direct
+DELETE table grants are added, and operators/viewers cannot use the RPC. This
+is permanent deletion, not archive or undo. Deleting the selected warehouse
+switches to another accessible warehouse or shows the create-warehouse state.
+
+## Mobile QR camera and warehouse names
+
+The QR modal requests `getUserMedia` independently of native BarcodeDetector
+support. Native QR detection is optional; `jsqr` 1.4.0 loads on demand as a
+pixel decoder for Safari/iOS and other browsers without the API. Video uses
+muted inline playback and an ideal rear-camera preference. Closing the scanner,
+hiding the document or reading a code stops tracks; pending permission results
+are released if the scanner was closed. Permission/device errors are shown
+separately. A photo input offers QR decoding without a live camera stream.
+Camera use still requires HTTPS and permission granted by the actual device.
+
+The owner can use the pencil icon beside the warehouse title or select **Đổi tên kho** from its sidebar title menu. It uses the existing
+owner-only, version-checked warehouse update RPC with unchanged dimensions.
+
+## Live 3D stock
+
+Stock symbols come from positive `stock_balances` joined to products. Colours
+are stable per product ID, boxes are labelled ×N, and hover/click shows the SKU
+and exact quantity. Small quantities use one symbol per unit; larger quantities
+are grouped into at most 180 symbols per rack, preserving exact per-SKU totals.
+An overflow symbol represents additional SKUs when a rack has more than 180.
+Empty racks draw no stock. Tiers are assigned automatically; symbol sizes are
+illustrative because packaging dimensions and actual tier assignments are not
+stored. Inventory updates rebuild the symbols with the normal refresh cycle.
+Warehouse rename/delete actions sit next to the warehouse title; ownership and
+existing confirmation/version checks remain enforced.
+
+## Mobile 3D layout
+
+Below 768px, secondary scene actions are under **Công cụ**, components use a
+horizontal scrolling palette and **Thông số** toggles the inspector. Expanded
+mode fills the dynamic viewport, respects safe areas and locks background scroll.
+Camera resizing preserves its angle/zoom while adjusting framing for portrait
+aspect ratios. The canvas handles touch gestures; page scrolling remains outside
+it. Summary cards scroll horizontally on the map view to preserve canvas space.
+
+## Voice product search
+
+**Tìm bằng giọng nói** opens warehouse-scoped, paginated results. Speech uses
+optional native SpeechRecognition/webkitSpeechRecognition (`vi-VN`), starts only
+on a button click, stops after one final transcript or 15 seconds and aborts on
+close. Unsupported browsers and permission/network failures retain text search.
+The browser provider may process audio remotely; the UI explains this before use.
+Accent-insensitive matching preserves duplicate names and displays SKU, current
+quantity/unit and rack links. No product is selected automatically. This feature
+only reads the already-authorized warehouse snapshot and never changes inventory.

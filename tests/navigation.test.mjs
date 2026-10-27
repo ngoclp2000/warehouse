@@ -10,3 +10,8 @@ test('disconnected floor does not teleport through a barrier',()=>{const wall=[{
 test('nearest free and movement reject an occupied point',()=>{const free=nearestFree({x:0,z:0},warehouse,racks);assert.ok(free&&canStand(free,warehouse,racks));const from={x:-2,z:0};const next=movePerson(from,.2,0,warehouse,racks);assert.equal(next.x,from.x)});
 test('decorative worker moves automatically and never mutates selected rack',()=>{const scene=new THREE.Scene(),latest={current:{warehouse,racks,paused:false,reducedMotion:false,hidden:false}},worker=createAmbientWorker({scene,latest}),actor=scene.getObjectByName('ambient-worker');let first=null,moved=false;for(let i=0;i<2400;i++){worker.update(i/60);if(actor.visible){const p={x:actor.position.x,z:actor.position.z};assert.equal(canStand(p,warehouse,racks),true);if(!first)first=p;else if(Math.hypot(p.x-first.x,p.z-first.z)>1)moved=true}}assert.ok(moved);worker.dispose();assert.equal(scene.children.length,0)});
 test('paused decorative worker stays in place',()=>{const scene=new THREE.Scene(),latest={current:{warehouse,racks,paused:false,reducedMotion:false,hidden:false}},worker=createAmbientWorker({scene,latest});for(let i=0;i<100;i++)worker.update(i/60);const actor=scene.getObjectByName('ambient-worker'),before=actor.position.clone();latest.current.paused=true;for(let i=100;i<200;i++)worker.update(i/60);assert.ok(actor.position.equals(before));worker.dispose()});
+test('diagonal drawn walls block walking along their actual rotated footprint',()=>{
+ const wall={x:0,z:0,width:8,depth:.18,rotation:45};
+ assert.equal(canStand({x:2,z:2},warehouse,[wall]),false);
+ assert.equal(canStand({x:2,z:-2},warehouse,[wall]),true);
+});
