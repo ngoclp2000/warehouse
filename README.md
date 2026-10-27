@@ -131,11 +131,13 @@ owner-only, version-checked warehouse update RPC with unchanged dimensions.
 Stock symbols come from positive `stock_balances` joined to products. Colours
 are stable per product ID, boxes are labelled ×N, and hover/click shows the SKU
 and exact quantity. Small quantities use one symbol per unit; larger quantities
-are grouped into at most 180 symbols per rack, preserving exact per-SKU totals.
+are grouped into a bounded number of symbols, preserving exact per-SKU totals.
+With detailed locations the budget is split by occupied slot (at least two
+symbols per occupied slot, including a possible overflow group).
 An overflow symbol represents additional SKUs when a rack has more than 180.
-Empty racks draw no stock. Tiers are assigned automatically; symbol sizes are
-illustrative because packaging dimensions and actual tier assignments are not
-stored. Inventory updates rebuild the symbols with the normal refresh cycle.
+Empty racks draw no stock. Detailed stock uses recorded tiers/bins; unassigned
+stock is listed separately. Symbol sizes are illustrative because packaging
+dimensions are not stored. Inventory updates rebuild the symbols with the normal refresh cycle.
 Warehouse rename/delete actions sit next to the warehouse title; ownership and
 existing confirmation/version checks remain enforced.
 
@@ -158,3 +160,42 @@ The browser provider may process audio remotely; the UI explains this before use
 Accent-insensitive matching preserves duplicate names and displays SKU, current
 quantity/unit and rack links. No product is selected automatically. This feature
 only reads the already-authorized warehouse snapshot and never changes inventory.
+
+## Rack → tier → bin inventory
+
+Apply `supabase/migrations/20261027080210_stock_locations.sql` and
+`supabase/migrations/20261027080825_stock_location_fk_indexes.sql` after the existing
+`database/` migrations. Each rack has 1–20 tiers and 1–20 equal-width bins per
+tier (`bins_per_shelf`, default 1). Tier 01 is the lowest deck; bin 01 starts
+at local left when facing the rack's front (+local Z), and follows rack rotation.
+Location labels use the rack code plus `-T01-O01`; stable UUIDs are used in the
+ledger, so renaming/moving a rack does not detach its stock.
+
+`stock_locations` and `location_balances` are member-readable under RLS with no
+direct client write grants. Rack insert/configuration creates slots atomically;
+removing occupied tiers/bins is blocked on the server. Empty inactive slots stay
+in the database for immutable history and reuse their UUID on re-expansion.
+`record_location_movement` checks warehouse/write membership, active positions,
+source quantity, request idempotency and same-position transfers. It serializes
+with existing warehouse inventory/layout writes and updates detailed balances,
+rack aggregates and immutable history in one transaction. Same-rack transfers
+between different positions are allowed. Existing `record_movement` clients can
+only move the unassigned bucket; they cannot silently consume allocated stock.
+
+Migration assigns all preexisting quantities and historical rack references to
+an explicit **Chưa phân ô** bucket. It does not invent historical tier/bin data.
+New UI receipts require a real tier/bin; old stock can be allocated through
+**Phân ô hàng cũ** or **Chuyển vị trí**, including within the same rack.
+Product detail, inventory table, movement history and voice search show full
+location labels. **Xem 3D** and the rack position selector highlight the chosen
+slot. Spatial stock meshes stay inside their recorded tier/bin; unassigned stock
+is listed/warned but not rendered on an invented shelf. Package sizes remain
+illustrative and do not represent capacity/load certification.
+
+`npm test` covers active slot filtering, quantity conservation and mesh bounds.
+`tests/locations.integration.sql` uses a rolled-back disposable warehouse to
+verify allocation, same/cross-rack transfer, retries, rejected overdraw, occupied
+slot guards, inactive slots, stable IDs, permissions/RLS and whole-warehouse
+deletion. It requires an SQL admin and an existing warehouse owner; it must not
+be run as an ordinary frontend query. Browser verification uses a disposable
+warehouse and deletes it after the check.

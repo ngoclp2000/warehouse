@@ -1,0 +1,2 @@
+create index location_balances_product_warehouse_idx on public.location_balances(product_id,warehouse_id);
+create index stock_locations_rack_warehouse_idx on public.stock_locations(rack_id,warehouse_id);

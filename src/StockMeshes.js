@@ -1,13 +1,13 @@
 import * as THREE from 'three';
+import {stockPlacement} from './locations';
 export function addStockMeshes(parent,rack,tiers,stock){
  const groups=stock.groups;if(!groups.length)return;
- const w=Number(rack.width),d=Number(rack.depth),cols=Math.max(1,Math.min(10,Math.floor(w/.32))),rows=Math.max(1,Math.min(6,Math.floor(d/.32))),perTier=cols*rows,layers=Math.ceil(groups.length/(tiers.length*perTier));
- const cw=Math.max(.1,w-.16)/cols,cd=Math.max(.1,d-.16)/rows;
  const mesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({color:0xffffff,roughness:.88}),groups.length);
  const tape=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({color:0xf1dfbc,roughness:.85}),groups.length);
  const m=new THREE.Object3D(),placements=[];
- groups.forEach((item,i)=>{const tier=tiers[Math.floor(i/perTier)%tiers.length],slot=i%perTier,layer=Math.floor(i/(perTier*tiers.length)),pitch=tier.clearance*.8/layers,bh=Math.min(.34,pitch*.85),bw=cw*.82,bd=cd*.82;
-  const x=-Math.max(.1,w-.16)/2+(slot%cols+.5)*cw,z=Math.max(.1,d-.16)/2-(Math.floor(slot/cols)+.5)*cd,y=tier.y+tier.thickness/2+layer*pitch+bh/2;
+ const totals=new Map(),used=new Map();for(const item of groups){const key=item.locationId||'legacy';totals.set(key,(totals.get(key)||0)+1)}
+ groups.forEach((item,i)=>{const key=item.locationId||'legacy',index=used.get(key)||0;used.set(key,index+1);
+  const p=stockPlacement(rack,tiers,item,index,totals.get(key)),{x,y,z}=p,bw=p.w,bd=p.d,bh=p.h;
   placements.push({x,y:y+bh/2+.008,z,w:bw*.82,d:bd*.65});m.position.set(x,y,z);m.scale.set(bw,bh,bd);m.updateMatrix();mesh.setMatrixAt(i,m.matrix);mesh.setColorAt(i,new THREE.Color(item.color));
   m.position.set(x,y+bh/2+.002,z);m.scale.set(bw*.16,.004,bd);m.updateMatrix();tape.setMatrixAt(i,m.matrix);
  });

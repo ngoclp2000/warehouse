@@ -14,3 +14,16 @@ export function buildRackStock(rackId,balances,products,maxBoxes=180){
  if(overflow.length)groups.push({productId:null,quantity:overflow.reduce((s,p)=>s+p.quantity,0),items:overflow,sku:`${overflow.length} mã khác`,name:'Nhóm hàng',unit:'đơn vị',color:'#7b8794',overflow:true});
  return {items,groups,total,unitSummary,grouped:groups.some(g=>g.quantity>1||g.overflow)};
 }
+
+// Keep each quantity bucket inside its recorded tier/bin; unassigned stock has no
+// physical mesh, so the scene never invents a storage position for old stock.
+export function buildLocatedRackStock(rackId,balances,products,maxBoxes=180){
+ const summary=buildRackStock(rackId,balances,products,maxBoxes),byLocation=new Map();let unassignedTotal=0;
+ for(const b of balances){if(b.rack_id!==rackId||b.qty<=0)continue;if(!b.tier){unassignedTotal+=Number(b.qty);continue}if(!byLocation.has(b.location_id))byLocation.set(b.location_id,[]);byLocation.get(b.location_id).push(b)}
+ const groups=[],limit=Math.max(2,Math.floor(maxBoxes/Math.max(1,byLocation.size)));
+ for(const rows of byLocation.values()){
+  const location=rows[0],stock=buildRackStock(rackId,rows,products,limit);
+  groups.push(...stock.groups.map(g=>({...g,locationId:location.location_id,tier:location.tier,bin:location.bin,locationLabel:location.locationLabel,rackQuantity:summary.items.find(p=>p.productId===g.productId)?.quantity??g.quantity})));
+ }
+ return {...summary,groups,unassignedTotal};
+}
