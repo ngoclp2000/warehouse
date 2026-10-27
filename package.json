@@ -1,0 +1,31 @@
+{
+  "name": "kho3d",
+  "version": "1.0.0",
+  "description": "KhoSpace inventory management with Supabase and Mantine",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test tests/geometry.test.mjs tests/navigation.test.mjs",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@mantine/core": "9.7.4",
+    "@mantine/hooks": "9.7.4",
+    "@mantine/notifications": "9.7.4",
+    "@supabase/supabase-js": "2.118.0",
+    "lucide-react": "1.61.0",
+    "qrcode": "1.5.4",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "6.1.2",
+    "vite": "8.3.5"
+  }
+}
